@@ -51,6 +51,27 @@ const CardContent = styled.div`
     }
 `;
 
+const SubTaskList = styled.div`
+    margin-top: 8px;
+    font-size: 12px;
+
+    .subtask-item {
+        display: flex;
+        align-items: center;
+        padding: 2px 0;
+        color: #666;
+
+        &.completed {
+            text-decoration: line-through;
+            color: #999;
+        }
+    }
+
+    .subtask-checkbox {
+        margin-right: 6px;
+    }
+`;
+
 export interface InputProps {
     cardId: string;
     index: number;
@@ -148,6 +169,34 @@ export const Card: FC<Props> = React.memo((props: Props) => {
         return newContent;
     }, [props.content, props.searchReg]);
 
+    const subTasksDisplay = React.useMemo(() => {
+        if (!props.subTasks || props.subTasks.length === 0) return null;
+
+        const completed = props.subTasks.filter((st) => st.completed).length;
+        const total = props.subTasks.length;
+
+        return (
+            <SubTaskList>
+                <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                    Subtasks: {completed}/{total}
+                </div>
+                {props.subTasks.slice(0, 3).map((subTask) => (
+                    <div
+                        key={subTask._id}
+                        className={`subtask-item ${subTask.completed ? 'completed' : ''}`}
+                    >
+                        <span>• {subTask.title}</span>
+                    </div>
+                ))}
+                {props.subTasks.length > 3 && (
+                    <div style={{ color: '#999', marginTop: 2 }}>
+                        +{props.subTasks.length - 3} more...
+                    </div>
+                )}
+            </SubTaskList>
+        );
+    }, [props.subTasks]);
+
     return (
         <>
             <Draggable draggableId={_id} index={index}>
@@ -218,6 +267,7 @@ export const Card: FC<Props> = React.memo((props: Props) => {
                                             style={{ maxHeight: 250 }}
                                             ref={markdownRef}
                                         />
+                                        {subTasksDisplay}
                                         <Divider style={{ margin: '0 0 4px 0' }} />
                                         <BadgeHolder>
                                             {props.sessionIds.length > 0 ? (

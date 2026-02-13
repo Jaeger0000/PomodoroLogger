@@ -1,5 +1,12 @@
 import type { DistractingRow } from '../Timer/action';
 
+export interface SubTask {
+    _id: string;
+    title: string;
+    completed: boolean;
+    createdTime: number;
+}
+
 export interface Card {
     _id: string;
     content: string;
@@ -10,6 +17,7 @@ export interface Card {
         actual: number;
     };
     createdTime?: number;
+    subTasks?: SubTask[];
 }
 
 export interface AggInfo {

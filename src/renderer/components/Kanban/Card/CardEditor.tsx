@@ -5,14 +5,76 @@ import { actions as kanbanActions } from '../action';
 import { RootState } from '../../../reducers';
 import ReactHotkeys from 'react-hot-keys';
 import { genMapDispatchToProp } from '../../../utils';
-import { Button, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Tabs } from 'antd';
+import {
+    Button,
+    Col,
+    Form,
+    Input,
+    InputNumber,
+    Modal,
+    Popconfirm,
+    Row,
+    Tabs,
+    Checkbox,
+    Icon,
+} from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import shortid from 'shortid';
-import { Card } from '../type';
+import { Card, SubTask } from '../type';
 import { Markdown } from '../style/Markdown';
 import formatMarkdown from './formatMarkdown';
 import { EditorContainer } from '../style/editorStyle';
+import styled from 'styled-components';
+
 const { TabPane } = Tabs;
+
+const SubTaskContainer = styled.div`
+    margin-top: 16px;
+
+    .subtask-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+
+    .subtask-item {
+        display: flex;
+        align-items: center;
+        padding: 6px 0;
+        border-bottom: 1px solid #f0f0f0;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        .subtask-checkbox {
+            margin-right: 8px;
+        }
+
+        .subtask-title {
+            flex: 1;
+            padding: 0 8px;
+
+            &.completed {
+                text-decoration: line-through;
+                color: #999;
+            }
+        }
+
+        .subtask-actions {
+            display: flex;
+            gap: 8px;
+        }
+    }
+
+    .subtask-input-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+`;
 
 interface Props extends CardActionTypes {
     visible: boolean;
@@ -32,6 +94,10 @@ interface FormData {
 const _CardInDetail: FC<Props> = React.memo((props: Props) => {
     const [showMarkdownPreview, setShowMarkdownPreview] = useState(true);
     const [cardContent, setCardContent] = useState('');
+    const [newSubTaskTitle, setNewSubTaskTitle] = useState('');
+    const [editingSubTaskId, setEditingSubTaskId] = useState<string | null>(null);
+    const [editingSubTaskTitle, setEditingSubTaskTitle] = useState('');
+
     const { card, visible, form, onCancel, listId } = props;
     const isCreating = !card;
     const lastIsCreating = React.useRef<boolean | null>(null);
@@ -82,6 +148,47 @@ const _CardInDetail: FC<Props> = React.memo((props: Props) => {
     const onSwitchIsEditing = () => {
         setIsEditingActualTime(!isEditingActualTime);
     };
+
+    const handleAddSubTask = React.useCallback(() => {
+        if (!card || !newSubTaskTitle.trim()) return;
+
+        props.addSubTask(card._id, newSubTaskTitle.trim());
+        setNewSubTaskTitle('');
+    }, [card, newSubTaskTitle, props]);
+
+    const handleToggleSubTask = React.useCallback(
+        (subTaskId: string) => {
+            if (!card) return;
+            props.toggleSubTask(card._id, subTaskId);
+        },
+        [card, props]
+    );
+
+    const handleDeleteSubTask = React.useCallback(
+        (subTaskId: string) => {
+            if (!card) return;
+            props.deleteSubTask(card._id, subTaskId);
+        },
+        [card, props]
+    );
+
+    const handleStartEdit = React.useCallback((subTask: SubTask) => {
+        setEditingSubTaskId(subTask._id);
+        setEditingSubTaskTitle(subTask.title);
+    }, []);
+
+    const handleSaveEdit = React.useCallback(() => {
+        if (!card || !editingSubTaskId || !editingSubTaskTitle.trim()) return;
+
+        props.updateSubTask(card._id, editingSubTaskId, editingSubTaskTitle.trim());
+        setEditingSubTaskId(null);
+        setEditingSubTaskTitle('');
+    }, [card, editingSubTaskId, editingSubTaskTitle, props]);
+
+    const handleCancelEdit = React.useCallback(() => {
+        setEditingSubTaskId(null);
+        setEditingSubTaskTitle('');
+    }, []);
 
     const saveValues = ({ title, content, estimatedTime, actualTime }: FormData) => {
         const time = estimatedTime || 0;
@@ -224,6 +331,104 @@ const _CardInDetail: FC<Props> = React.memo((props: Props) => {
                             )}
                         </Col>
                     </Row>
+
+                    {/* SubTasks Section */}
+                    {!thisIsCreating && card && (
+                        <SubTaskContainer>
+                            <div className="subtask-header">
+                                <span>Subtasks ({card.subTasks?.length || 0})</span>
+                            </div>
+
+                            {card.subTasks && card.subTasks.length > 0 && (
+                                <div>
+                                    {card.subTasks.map((subTask) => (
+                                        <div key={subTask._id} className="subtask-item">
+                                            <Checkbox
+                                                className="subtask-checkbox"
+                                                checked={subTask.completed}
+                                                onChange={() => handleToggleSubTask(subTask._id)}
+                                            />
+                                            {editingSubTaskId === subTask._id ? (
+                                                <>
+                                                    <Input
+                                                        value={editingSubTaskTitle}
+                                                        onChange={(e) =>
+                                                            setEditingSubTaskTitle(e.target.value)
+                                                        }
+                                                        onPressEnter={handleSaveEdit}
+                                                        size="small"
+                                                        style={{ flex: 1, marginRight: 8 }}
+                                                    />
+                                                    <div className="subtask-actions">
+                                                        <Button
+                                                            size="small"
+                                                            type="primary"
+                                                            icon="check"
+                                                            onClick={handleSaveEdit}
+                                                        />
+                                                        <Button
+                                                            size="small"
+                                                            icon="close"
+                                                            onClick={handleCancelEdit}
+                                                        />
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span
+                                                        className={`subtask-title ${
+                                                            subTask.completed ? 'completed' : ''
+                                                        }`}
+                                                    >
+                                                        {subTask.title}
+                                                    </span>
+                                                    <div className="subtask-actions">
+                                                        <Button
+                                                            size="small"
+                                                            icon="edit"
+                                                            onClick={() => handleStartEdit(subTask)}
+                                                        />
+                                                        <Popconfirm
+                                                            title="Delete this subtask?"
+                                                            onConfirm={() =>
+                                                                handleDeleteSubTask(subTask._id)
+                                                            }
+                                                        >
+                                                            <Button
+                                                                size="small"
+                                                                icon="delete"
+                                                                type="danger"
+                                                            />
+                                                        </Popconfirm>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="subtask-input-row">
+                                <Input
+                                    placeholder="Add a new subtask..."
+                                    value={newSubTaskTitle}
+                                    onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                                    onPressEnter={handleAddSubTask}
+                                    size="small"
+                                />
+                                <Button
+                                    type="primary"
+                                    icon="plus"
+                                    onClick={handleAddSubTask}
+                                    size="small"
+                                    disabled={!newSubTaskTitle.trim()}
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                        </SubTaskContainer>
+                    )}
+
                     {thisIsCreating ? undefined : (
                         <Row>
                             <Popconfirm title={'Are you sure?'} onConfirm={onDelete}>

@@ -150,7 +150,10 @@ module.exports = merge.smart(baseConfig, {
             ]
         }),
         new ForkTsCheckerWebpackPlugin({
-            reportFiles: ['src/renderer/**/*']
+            reportFiles: ['src/renderer/**/*'],
+            workers: 4,
+            memoryLimit: 4096,
+            useTypescriptIncrementalApi: false,
         }),
         new CopyPlugin([
             { from: path.resolve(__dirname, 'public'), to: path.resolve(__dirname, 'dist') },
